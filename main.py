@@ -14,7 +14,7 @@ start_pos = (0, 3)
 goal_pos = (15, 0)
 
 HEURISTIC = "manhattan" # "manhattan" or "straight"
-SEARCH_ALGO = "bestfirst" # "hillclimb", "bestfirst", "a_star"
+SEARCH_ALGO = "a_star" # "hillclimb", "bestfirst", "a_star"
 MOVE_MODE = "cross" # "cross" or "star"
 
 
@@ -109,6 +109,8 @@ def a_star(map, current_pos, open_list, closed_list, legal_moves):
     #print("open_list", open_list)
     #print("closed_list", closed_list)
     #print("legal_moves", legal_moves)
+
+    open_list.append(current_pos)
 
     dead_end = False
 
@@ -245,7 +247,7 @@ for i in range(5, 7):
     game_map[i][2]["type"] = "X"
 for i in range(0, 6):
     game_map[i][4]["type"] = "X"
-for i in range(1, 9):
+for i in range(1, 7):
     game_map[i][6]["type"] = "X"
 for i in range(0, 6):
     game_map[i][8]["type"] = "X"
@@ -253,7 +255,7 @@ for i in range(1, 7):
     game_map[i][10]["type"] = "X"
 for i in range(0, 6):
     game_map[i][12]["type"] = "X"
-for i in range(0, 7):
+for i in range(1, 7):
     game_map[i][14]["type"] = "X"
 
 # End of map feature generation
