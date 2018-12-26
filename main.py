@@ -110,6 +110,8 @@ def a_star(map, current_pos, open_list, closed_list, legal_moves):
     #print("closed_list", closed_list)
     #print("legal_moves", legal_moves)
 
+    dead_end = False
+
     for cell in legal_moves:
         if (cell not in open_list) and (cell not in closed_list):
             open_list.append(cell)
@@ -143,15 +145,19 @@ def a_star(map, current_pos, open_list, closed_list, legal_moves):
             minimum_F_cell = cell
 
     current_pos = minimum_F_cell
-    open_list.remove(current_pos)
-    closed_list.append(current_pos)
+    if len(open_list) > 0:
+        open_list.remove(current_pos)
+        closed_list.append(current_pos)
+    else:
+        dead_end = True
 
-    return map, current_pos, open_list, closed_list
+    return map, current_pos, open_list, closed_list, dead_end
 
 
 def hillclimb(map, current_pos, legal_moves):
 
     dead_end = False
+    signal_dead_end = False
 
     best_H = estimate_dist(current_pos, goal_pos)
     #print("best_H (current)", best_H)
@@ -165,10 +171,11 @@ def hillclimb(map, current_pos, legal_moves):
             best_H_cell = cell
     if best_H_cell == current_pos:
         dead_end = True
+        signal_dead_end = True
     else:
         map[best_H_cell[1]][best_H_cell[0]]["parent"] = current_pos
 
-    return map, best_H_cell, dead_end
+    return map, best_H_cell, dead_end, signal_dead_end, current_pos
 
 
 def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
@@ -186,6 +193,7 @@ def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
     best_H = -1
     best_H_cell = current_pos
     dead_end = True
+    signal_dead_end = False
 
     for cell in legal_moves:
         #print("cell", cell)
@@ -198,9 +206,10 @@ def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
                 dead_end = False
 
     if dead_end:
+        signal_dead_end = True
         global live_color
         live_color = (live_color[0]+31, live_color[1]+31, live_color[2]+31)
-        print("open_list", open_list)
+        #print("open_list", open_list)
         for cell in open_list:
             if cell not in closed_list:
                 #print("cell", cell)
@@ -211,10 +220,14 @@ def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
                     #print("best_H_cell", best_H_cell)
                     dead_end = False
 
-    open_list.remove(best_H_cell)
     closed_list.append(best_H_cell)
+    if len(open_list) > 0:
+        open_list.remove(best_H_cell)
+    else:
+        dead_end = True
+        signal_dead_end = True
 
-    return map, best_H_cell, open_list, closed_list, dead_end
+    return map, best_H_cell, open_list, closed_list, dead_end, signal_dead_end, current_pos
 
 
 game_map = create_map()
@@ -232,7 +245,7 @@ for i in range(5, 7):
     game_map[i][2]["type"] = "X"
 for i in range(0, 6):
     game_map[i][4]["type"] = "X"
-for i in range(1, 7):
+for i in range(1, 9):
     game_map[i][6]["type"] = "X"
 for i in range(0, 6):
     game_map[i][8]["type"] = "X"
@@ -275,12 +288,13 @@ pygame.display.flip()
 current_pos = start_pos
 
 # A-Star init
-open_list = [start_pos]
+open_list = []
 closed_list = []
 game_map[start_pos[1]][start_pos[0]]["G"] = 0
 
 arrived_at_goal = False
 dead_end = False
+signal_dead_end = False
 
 while not arrived_at_goal and not dead_end:
     timestamp_frame_start = datetime.now()
@@ -294,14 +308,16 @@ while not arrived_at_goal and not dead_end:
     #print("legal_moves", legal_moves)
 
     if SEARCH_ALGO == "a_star":
-        game_map, current_pos, open_list, closed_list = a_star(game_map, current_pos, open_list, closed_list,
+        game_map, current_pos, open_list, closed_list, dead_end = a_star(game_map, current_pos, open_list, closed_list,
                                                                legal_moves)
     elif SEARCH_ALGO == "hillclimb":
-        game_map, current_pos, dead_end = hillclimb(game_map, current_pos, legal_moves)
+        game_map, current_pos, dead_end, signal_dead_end, dead_end_pos = hillclimb(game_map, current_pos, legal_moves)
     elif SEARCH_ALGO == "bestfirst":
-        game_map, current_pos, open_list, closed_list, dead_end = bestfirst(game_map, current_pos, open_list,
-                                                                            closed_list, legal_moves)
-
+        game_map, current_pos, open_list, closed_list, dead_end, signal_dead_end, dead_end_pos = bestfirst(game_map,
+                                                                                                           current_pos,
+                                                                                                           open_list,
+                                                                                                           closed_list,
+                                                                                                           legal_moves)
 
 
     if current_pos == goal_pos:
@@ -310,6 +326,12 @@ while not arrived_at_goal and not dead_end:
     else:
         pygame.draw.rect(screen, live_color,
                          (current_pos[0] * cellSize + 1, current_pos[1] * cellSize + 1, cellSize - 2, cellSize - 2), 0)
+        if signal_dead_end:
+            pygame.draw.aaline(screen, RED, (dead_end_pos[0] * cellSize + 1, dead_end_pos[1] * cellSize + 1),
+                               (dead_end_pos[0] * cellSize + cellSize-1, dead_end_pos[1] * cellSize + cellSize-1), 2)
+            pygame.draw.aaline(screen, RED, (dead_end_pos[0] * cellSize + 1, dead_end_pos[1] * cellSize + cellSize-1),
+                               (dead_end_pos[0] * cellSize + cellSize-1, dead_end_pos[1] * cellSize + 1), 2)
+            signal_dead_end = False
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
