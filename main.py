@@ -3,19 +3,18 @@ import pygame
 import os
 from datetime import datetime
 import time
-from pygame.locals import *
 
 
 window_x, window_y = 5, 32
 width, height = 1600, 900
 cellSize = 100
-frames_per_second = 200
+frames_per_second = 10
 
-start_pos = (1, 3)
-goal_pos = (14, 4)
+start_pos = (0, 3)
+goal_pos = (15, 0)
 
 HEURISTIC = "manhattan" # "manhattan" or "straight"
-SEARCH_ALGO = "hillclimb" # "hillclimb", "bestfirst", "a_star"
+SEARCH_ALGO = "bestfirst" # "hillclimb", "bestfirst", "a_star"
 MOVE_MODE = "cross" # "cross" or "star"
 
 
@@ -24,6 +23,10 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 GREY = (63, 63, 63)
+DARK_GREY = (31, 31, 31)
+YELLOW = (200, 255, 0)
+
+live_color = DARK_GREY
 
 cellWallColor = GREY
 
@@ -69,7 +72,25 @@ def get_moves(source_pos):
         if source_pos[0] < gridWidth-1:
             move_candidates.append((source_pos[0]+1, source_pos[1]))
     elif MOVE_MODE == "star":
-        move_candidates = []
+        #Up Down Left Right
+        if source_pos[1] > 0:
+            move_candidates.append((source_pos[0], source_pos[1]-1))
+        if source_pos[1] < gridHeight-1:
+            move_candidates.append((source_pos[0], source_pos[1]+1))
+        if source_pos[0] > 0:
+            move_candidates.append((source_pos[0]-1, source_pos[1]))
+        if source_pos[0] < gridWidth-1:
+            move_candidates.append((source_pos[0]+1, source_pos[1]))
+
+        # Up-Left Up-Right Down-Left Down-Right
+        if source_pos[1] > 0 and source_pos[0] > 0:
+            move_candidates.append((source_pos[0]-1, source_pos[1]-1))
+        if source_pos[1] > 0 and source_pos[0] < gridWidth-1:
+            move_candidates.append((source_pos[0]+1, source_pos[1]-1))
+        if source_pos[1] < gridHeight-1 and source_pos[0] > 0:
+            move_candidates.append((source_pos[0]-1, source_pos[1]+1))
+        if source_pos[1] < gridHeight-1 and source_pos[0] < gridWidth-1:
+            move_candidates.append((source_pos[0]+1, source_pos[1]+1))
 
     return move_candidates
 
@@ -88,6 +109,10 @@ def a_star(map, current_pos, open_list, closed_list, legal_moves):
     #print("open_list", open_list)
     #print("closed_list", closed_list)
     #print("legal_moves", legal_moves)
+
+    for cell in legal_moves:
+        if (cell not in open_list) and (cell not in closed_list):
+            open_list.append(cell)
 
     if current_pos in open_list:
         open_list.remove(current_pos)
@@ -124,28 +149,101 @@ def a_star(map, current_pos, open_list, closed_list, legal_moves):
     return map, current_pos, open_list, closed_list
 
 
+def hillclimb(map, current_pos, legal_moves):
+
+    dead_end = False
+
+    best_H = estimate_dist(current_pos, goal_pos)
+    #print("best_H (current)", best_H)
+    best_H_cell = current_pos
+    for cell in legal_moves:
+        #print("cell", cell)
+        new_H = estimate_dist(cell, goal_pos)
+        #print("new_H", new_H)
+        if (new_H < best_H) or (best_H < 0):
+            best_H = new_H
+            best_H_cell = cell
+    if best_H_cell == current_pos:
+        dead_end = True
+    else:
+        map[best_H_cell[1]][best_H_cell[0]]["parent"] = current_pos
+
+    return map, best_H_cell, dead_end
+
+
+def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
+
+    #print("closed_list", closed_list)
+    closed_list.append(current_pos)
+
+    for cell in legal_moves:
+        if (cell not in open_list) and (cell not in closed_list):
+            open_list.append(cell)
+
+    for cell in open_list:
+        map[cell[1]][cell[0]]["H"] = estimate_dist(cell, goal_pos)
+
+    best_H = -1
+    best_H_cell = current_pos
+    dead_end = True
+
+    for cell in legal_moves:
+        #print("cell", cell)
+        if cell not in closed_list:
+            map[cell[1]][cell[0]]["parent"] = current_pos
+            #print("new_H", map[cell[1]][cell[0]]["H"])
+            if map[cell[1]][cell[0]]["H"] < best_H or best_H < 0:
+                best_H = map[cell[1]][cell[0]]["H"]
+                best_H_cell = cell
+                dead_end = False
+
+    if dead_end:
+        global live_color
+        live_color = (live_color[0]+31, live_color[1]+31, live_color[2]+31)
+        print("open_list", open_list)
+        for cell in open_list:
+            if cell not in closed_list:
+                #print("cell", cell)
+                if map[cell[1]][cell[0]]["H"] < best_H or best_H < 0:
+                    best_H = map[cell[1]][cell[0]]["H"]
+                    best_H_cell = cell
+                    #print("best_H", best_H)
+                    #print("best_H_cell", best_H_cell)
+                    dead_end = False
+
+    open_list.remove(best_H_cell)
+    closed_list.append(best_H_cell)
+
+    return map, best_H_cell, open_list, closed_list, dead_end
+
+
 game_map = create_map()
 
-
+# Map feature generation. To be implemented differently
 game_map[start_pos[1]][start_pos[0]]["type"] = "S"
 game_map[goal_pos[1]][goal_pos[0]]["type"] = "F"
-
-for i in range(2, 14):
+for i in range(2, 15):
     game_map[7][i]["type"] = "X"
-for i in range(0, 2):
-    game_map[i][3]["type"] = "X"
-for i in range(4, 7):
-    game_map[i][3]["type"] = "X"
-for i in range(1, 7):
-    game_map[i][5]["type"] = "X"
+for i in range(0, 4):
+    game_map[i][1]["type"] = "X"
+for i in range(0, 4):
+    game_map[i][2]["type"] = "X"
+for i in range(5, 7):
+    game_map[i][2]["type"] = "X"
 for i in range(0, 6):
-    game_map[i][7]["type"] = "X"
+    game_map[i][4]["type"] = "X"
 for i in range(1, 7):
-    game_map[i][9]["type"] = "X"
+    game_map[i][6]["type"] = "X"
 for i in range(0, 6):
-    game_map[i][11]["type"] = "X"
+    game_map[i][8]["type"] = "X"
 for i in range(1, 7):
-    game_map[i][13]["type"] = "X"
+    game_map[i][10]["type"] = "X"
+for i in range(0, 6):
+    game_map[i][12]["type"] = "X"
+for i in range(0, 7):
+    game_map[i][14]["type"] = "X"
+
+# End of map feature generation
 
 print_map(game_map)
 
@@ -182,8 +280,9 @@ closed_list = []
 game_map[start_pos[1]][start_pos[0]]["G"] = 0
 
 arrived_at_goal = False
+dead_end = False
 
-while not arrived_at_goal:
+while not arrived_at_goal and not dead_end:
     timestamp_frame_start = datetime.now()
 
     #print("current_pos", current_pos)
@@ -194,15 +293,23 @@ while not arrived_at_goal:
     legal_moves = check_move_legality(game_map, move_candidates)
     #print("legal_moves", legal_moves)
 
-    for cell in legal_moves:
-        if (cell not in open_list) and (cell not in closed_list):
-            open_list.append(cell)
+    if SEARCH_ALGO == "a_star":
+        game_map, current_pos, open_list, closed_list = a_star(game_map, current_pos, open_list, closed_list,
+                                                               legal_moves)
+    elif SEARCH_ALGO == "hillclimb":
+        game_map, current_pos, dead_end = hillclimb(game_map, current_pos, legal_moves)
+    elif SEARCH_ALGO == "bestfirst":
+        game_map, current_pos, open_list, closed_list, dead_end = bestfirst(game_map, current_pos, open_list,
+                                                                            closed_list, legal_moves)
 
-    game_map, current_pos, open_list, closed_list = a_star(game_map, current_pos, open_list, closed_list, legal_moves)
+
 
     if current_pos == goal_pos:
         arrived_at_goal = True
         #print("arrived")
+    else:
+        pygame.draw.rect(screen, live_color,
+                         (current_pos[0] * cellSize + 1, current_pos[1] * cellSize + 1, cellSize - 2, cellSize - 2), 0)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -214,8 +321,13 @@ while not arrived_at_goal:
         time.sleep((frame_time - frame_build_time) / 1000000.0)
     pygame.display.flip()
 
-parent = goal_pos
-total_path = []
+if not dead_end:
+    parent = goal_pos
+    total_path = []
+else:
+    parent = current_pos
+    total_path = [current_pos]
+
 while True:
     print(parent, " <-- ", game_map[parent[1]][parent[0]]["parent"])
     parent = game_map[parent[1]][parent[0]]["parent"]
@@ -227,7 +339,6 @@ while True:
 print("total_path", total_path)
 
 for path_cell in total_path:
-    #print("path_cell", path_cell)
     pygame.draw.rect(screen, BLUE, (path_cell[0] * cellSize + 1, path_cell[1] * cellSize + 1, cellSize - 2, cellSize - 2), 0)
     pygame.display.flip()
 
