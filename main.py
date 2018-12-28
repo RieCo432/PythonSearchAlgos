@@ -11,7 +11,7 @@ window_x, window_y = 5, 32
 # width, height = 1600, 900
 # cellSize = 100
 moves_per_second = 10
-fast_speed = 200
+fast_speed = 1000
 real_speed = moves_per_second
 
 # start_pos = (0, 3)
@@ -402,6 +402,15 @@ def draw_map(map, gridWidth, gridHeight, cellSize, width, height):
     pygame.display.flip()
 
 
+def clear_walls(map):
+    for row in map:
+        for cell in row:
+            if cell["type"] == "X":
+                cell["type"] = " "
+
+    return map
+
+
 search_path = False
 arrived_at_goal = False
 dead_end = False
@@ -422,14 +431,14 @@ draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
 while True:
     timestamp_frame_start = datetime.now()
 
-    if not search_path:
+    if not search_path and not trace_new_wall:
         current_pos = start_pos
         # A-Star init
         open_list = []
         closed_list = []
         game_map[start_pos[1]][start_pos[0]]["G"] = 0
 
-    if not arrived_at_goal and not dead_end:
+    if not arrived_at_goal and not dead_end and not trace_new_wall:
 
         if search_path:
             # print("current_pos", current_pos)
@@ -473,7 +482,7 @@ while True:
                                        (dead_end_pos[0] * cellSize + cellSize - 1, dead_end_pos[1] * cellSize + 1), 2)
                     signal_dead_end = False
 
-    if arrived_at_goal or dead_end:
+    if (arrived_at_goal or dead_end) and not trace_new_wall:
         # print("tracing path")
         # print_map(game_map)
         search_path = False
@@ -536,6 +545,9 @@ while True:
                     moves_per_second -= 10
                 elif moves_per_second > 1:
                     moves_per_second -= 1
+            elif event.key == pygame.K_c:
+                game_map = clear_walls(game_map)
+                draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
             if event.key == pygame.K_s:
                 set_new_start = True
             elif event.key == pygame.K_f:
@@ -579,8 +591,10 @@ while True:
         if wall_toggle_pos not in new_wall_blocks_list:
             new_wall_blocks_list.append(wall_toggle_pos)
         # print("new_wall_blocks_list", new_wall_blocks_list)
-        real_speed = moves_per_second
-        moves_per_second = fast_speed
+        if moves_per_second != fast_speed:
+            real_speed = moves_per_second
+            moves_per_second = fast_speed
+            frame_time = 1000000.0 / moves_per_second
 
     if trace_new_wall and not pressed1:
         trace_new_wall = False
