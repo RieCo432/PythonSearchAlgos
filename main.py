@@ -5,7 +5,8 @@ from datetime import datetime
 import time
 import json
 from sys import argv
-
+from random import randint, uniform, random
+from copy import deepcopy
 
 window_x, window_y = 5, 32
 # width, height = 1600, 900
@@ -18,9 +19,13 @@ real_speed = moves_per_second
 # goal_pos = (15, 0)
 
 HEURISTIC = "manhattan"  # "manhattan" or "straight"
-SEARCH_ALGO = "a_star"  # "hillclimb", "bestfirst", "a_star"
+SEARCH_ALGO = "genetic"  # "hillclimb", "bestfirst", "a_star", "genetic"
 MOVE_MODE = "cross"  # "cross" or "star"
 
+# Genetic parameters
+population_size = 2000
+brain_total_moves = 200
+mutation_rate = 0.15
 
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -54,7 +59,7 @@ def estimate_dist(start_pos, goal_pos):
     if HEURISTIC == "manhattan":
         return abs(goal_pos[0] - start_pos[0]) + abs(goal_pos[1] - start_pos[1])
     elif HEURISTIC == "straight":
-        return math.sqrt((goal_pos[0] - start_pos[0])**2 + (goal_pos[1] - start_pos[1])**2)
+        return math.sqrt((goal_pos[0] - start_pos[0]) ** 2 + (goal_pos[1] - start_pos[1]) ** 2)
 
 
 def print_map(map):
@@ -66,33 +71,33 @@ def get_moves(source_pos):
     move_candidates = []
     if MOVE_MODE == "cross":
         if source_pos[1] > 0:
-            move_candidates.append((source_pos[0], source_pos[1]-1))
-        if source_pos[1] < gridHeight-1:
-            move_candidates.append((source_pos[0], source_pos[1]+1))
+            move_candidates.append((source_pos[0], source_pos[1] - 1))
+        if source_pos[1] < gridHeight - 1:
+            move_candidates.append((source_pos[0], source_pos[1] + 1))
         if source_pos[0] > 0:
-            move_candidates.append((source_pos[0]-1, source_pos[1]))
-        if source_pos[0] < gridWidth-1:
-            move_candidates.append((source_pos[0]+1, source_pos[1]))
+            move_candidates.append((source_pos[0] - 1, source_pos[1]))
+        if source_pos[0] < gridWidth - 1:
+            move_candidates.append((source_pos[0] + 1, source_pos[1]))
     elif MOVE_MODE == "star":
         # Up Down Left Right
         if source_pos[1] > 0:
-            move_candidates.append((source_pos[0], source_pos[1]-1))
-        if source_pos[1] < gridHeight-1:
-            move_candidates.append((source_pos[0], source_pos[1]+1))
+            move_candidates.append((source_pos[0], source_pos[1] - 1))
+        if source_pos[1] < gridHeight - 1:
+            move_candidates.append((source_pos[0], source_pos[1] + 1))
         if source_pos[0] > 0:
-            move_candidates.append((source_pos[0]-1, source_pos[1]))
-        if source_pos[0] < gridWidth-1:
-            move_candidates.append((source_pos[0]+1, source_pos[1]))
+            move_candidates.append((source_pos[0] - 1, source_pos[1]))
+        if source_pos[0] < gridWidth - 1:
+            move_candidates.append((source_pos[0] + 1, source_pos[1]))
 
         # Up-Left Up-Right Down-Left Down-Right
         if source_pos[1] > 0 and source_pos[0] > 0:
-            move_candidates.append((source_pos[0]-1, source_pos[1]-1))
-        if source_pos[1] > 0 and source_pos[0] < gridWidth-1:
-            move_candidates.append((source_pos[0]+1, source_pos[1]-1))
-        if source_pos[1] < gridHeight-1 and source_pos[0] > 0:
-            move_candidates.append((source_pos[0]-1, source_pos[1]+1))
-        if source_pos[1] < gridHeight-1 and source_pos[0] < gridWidth-1:
-            move_candidates.append((source_pos[0]+1, source_pos[1]+1))
+            move_candidates.append((source_pos[0] - 1, source_pos[1] - 1))
+        if source_pos[1] > 0 and source_pos[0] < gridWidth - 1:
+            move_candidates.append((source_pos[0] + 1, source_pos[1] - 1))
+        if source_pos[1] < gridHeight - 1 and source_pos[0] > 0:
+            move_candidates.append((source_pos[0] - 1, source_pos[1] + 1))
+        if source_pos[1] < gridHeight - 1 and source_pos[0] < gridWidth - 1:
+            move_candidates.append((source_pos[0] + 1, source_pos[1] + 1))
 
     return move_candidates
 
@@ -159,7 +164,6 @@ def a_star(map, current_pos, open_list, closed_list, legal_moves):
 
 
 def hillclimb(map, current_pos, legal_moves):
-
     dead_end = False
     signal_dead_end = False
 
@@ -183,7 +187,6 @@ def hillclimb(map, current_pos, legal_moves):
 
 
 def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
-
     # print("closed_list", closed_list)
     closed_list.append(current_pos)
 
@@ -213,7 +216,7 @@ def bestfirst(map, current_pos, open_list, closed_list, legal_moves):
         signal_dead_end = True
         global live_color
         if live_color[0] <= 193 and live_color[1] <= 193 and live_color[2] <= 193:
-            live_color = (live_color[0]+31, live_color[1]+31, live_color[2]+31)
+            live_color = (live_color[0] + 31, live_color[1] + 31, live_color[2] + 31)
         else:
             live_color = DARK_GREY
         # print("open_list", open_list)
@@ -310,39 +313,6 @@ def reset_map_vars(map):
 
     return map
 
-# game_map = create_map(gridWidth, gridHeight)
-#
-# #Map feature generation. To be implemented differently
-# game_map[start_pos[1]][start_pos[0]]["type"] = "S"
-# game_map[goal_pos[1]][goal_pos[0]]["type"] = "F"
-# for i in range(2, 15):
-#     game_map[7][i]["type"] = "X"
-# for i in range(0, 4):
-#     game_map[i][1]["type"] = "X"
-# for i in range(0, 4):
-#     game_map[i][2]["type"] = "X"
-# for i in range(5, 7):
-#     game_map[i][2]["type"] = "X"
-# for i in range(0, 6):
-#     game_map[i][4]["type"] = "X"
-# for i in range(1, 7):
-#     game_map[i][6]["type"] = "X"
-# for i in range(0, 6):
-#     game_map[i][8]["type"] = "X"
-# for i in range(1, 7):
-#     game_map[i][10]["type"] = "X"
-# for i in range(0, 6):
-#     game_map[i][12]["type"] = "X"
-# for i in range(1, 7):
-#     game_map[i][14]["type"] = "X"
-#
-# # End of map feature generation
-#
-# print_map(game_map)
-
-
-# final_map_dict = export_map_structure(game_map)
-# import_map_structure(final_map_dict)
 
 # Default values
 height = 900
@@ -371,33 +341,35 @@ if len(argv) > 1:
             height = gridHeight * cellSize
             game_map = create_map(gridWidth, gridHeight)
             start_pos = (0, 0)
-            goal_pos = (gridWidth-1, gridHeight-1)
+            goal_pos = (gridWidth - 1, gridHeight - 1)
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (window_x, window_y)
 pygame.init()
 screen = pygame.display.set_mode((width, height))
-pygame.display.set_caption("Search algo: %s        Moves/Second: %s" %(SEARCH_ALGO, moves_per_second))
+pygame.display.set_caption("Search algo: %s        Moves/Second: %s" % (SEARCH_ALGO, moves_per_second))
 screen.fill(0)
 
 
 def draw_map(map, gridWidth, gridHeight, cellSize, width, height):
     screen.fill(0)
     for i in range(0, gridWidth):
-        pygame.draw.line(screen, cellWallColor, (i*cellSize, 0), (i*cellSize, height-1), 1)
-        pygame.draw.line(screen, cellWallColor, ((i+1)*cellSize-1, 0), ((i+1)*cellSize-1, height-1), 1)
+        pygame.draw.line(screen, cellWallColor, (i * cellSize, 0), (i * cellSize, height - 1), 1)
+        pygame.draw.line(screen, cellWallColor, ((i + 1) * cellSize - 1, 0), ((i + 1) * cellSize - 1, height - 1), 1)
 
     for i in range(0, gridHeight):
-        pygame.draw.line(screen, cellWallColor, (0, i*cellSize), (width-1, i*cellSize), 1)
-        pygame.draw.line(screen, cellWallColor, (0, (i+1)*cellSize-1), (width-1, (i+1)*cellSize-1), 1)
+        pygame.draw.line(screen, cellWallColor, (0, i * cellSize), (width - 1, i * cellSize), 1)
+        pygame.draw.line(screen, cellWallColor, (0, (i + 1) * cellSize - 1), (width - 1, (i + 1) * cellSize - 1), 1)
 
     for row in range(0, gridHeight):
         for cell in range(0, gridWidth):
             if map[row][cell]["type"] == "S":
-                pygame.draw.rect(screen, GREEN, (cell*cellSize+1, row*cellSize+1, cellSize-2, cellSize-2), 0)
+                pygame.draw.rect(screen, GREEN, (cell * cellSize + 1, row * cellSize + 1, cellSize - 2, cellSize - 2),
+                                 0)
             elif map[row][cell]["type"] == "F":
-                pygame.draw.rect(screen, RED, (cell*cellSize+1, row*cellSize+1, cellSize-2, cellSize-2), 0)
+                pygame.draw.rect(screen, RED, (cell * cellSize + 1, row * cellSize + 1, cellSize - 2, cellSize - 2), 0)
             elif map[row][cell]["type"] == "X":
-                pygame.draw.rect(screen, WHITE, (cell*cellSize+1, row*cellSize+1, cellSize-2, cellSize-2), 0)
+                pygame.draw.rect(screen, WHITE, (cell * cellSize + 1, row * cellSize + 1, cellSize - 2, cellSize - 2),
+                                 0)
 
     pygame.display.flip()
 
@@ -409,6 +381,234 @@ def clear_walls(map):
                 cell["type"] = " "
 
     return map
+
+
+class Brain:
+
+    def __init__(self, nr_of_directions):
+        self.directions = []
+        self.step = 0
+        for i in range(0, nr_of_directions):
+            if MOVE_MODE == "star":
+                self.directions.append([(randint(0, cellSize) - cellSize / 2)/2, (randint(0, cellSize) - cellSize / 2)/2])
+            elif MOVE_MODE == "cross":
+                if random() > 0.5:
+                    self.directions.append([(randint(0, cellSize) - cellSize / 2)/2, 0])
+                else:
+                    self.directions.append([0, (randint(0, cellSize) - cellSize / 2)/2])
+        # print("directions", self.directions)
+
+    def clone(self):
+        brain_clone = Brain(len(self.directions))
+        brain_clone.directions = deepcopy(self.directions)
+
+        return brain_clone
+
+    def mutate(self):
+        for i in range(0, len(self.directions)):
+            random_num = random()
+            if random_num <= mutation_rate:
+                # print("mutated at index", i)
+                if MOVE_MODE == "star":
+                    self.directions[i] = [(randint(0, cellSize) - cellSize / 2)/2, (randint(0, cellSize) - cellSize / 2)/2]
+                elif MOVE_MODE == "cross":
+                    if random() > 0.5:
+                        self.directions[i] = [(randint(0, cellSize) - cellSize / 2)/2, 0]
+                    else:
+                        self.directions[i] = [0, (randint(0, cellSize) - cellSize / 2)/2]
+
+
+class Dot:
+
+    def __init__(self, start_pos, goal_pos):
+        self.acceleration = [0, 0]
+        self.velocity = [0, 0]
+        self.pos = [start_pos[0] * cellSize + cellSize / 2, start_pos[1] * cellSize + cellSize / 2]
+        self.goal_pos = goal_pos
+        self.reachedGoal = False
+        self.isBest = False
+        self.dead = False
+        self.fitness = 0
+        self.brain = Brain(brain_total_moves)
+
+    def move(self):
+        if self.brain.step < len(self.brain.directions):
+            self.velocity[0] += int(self.brain.directions[self.brain.step][0])
+            self.velocity[1] += int(self.brain.directions[self.brain.step][1])
+            self.brain.step += 1
+
+            # print("vel", self.velocity, type(self.velocity))
+            # print("vel[0]", self.velocity[0], type(self.velocity[1]))
+            # print("pos", self.pos, type(self.pos))
+            # print("pos[0]", self.pos[0], type(self.pos[0]))
+
+            vel_x = int(self.velocity[0])
+            vel_y = int(self.velocity[1])
+
+            if vel_x > cellSize/2:
+                vel_x = cellSize/2
+            elif vel_x< -cellSize/2:
+                vel_x = -cellSize/2
+
+            if vel_y > cellSize/2:
+                vel_y = cellSize/2
+            elif vel_y < -cellSize/2:
+                vel_y = -cellSize/2
+
+            self.velocity[0] = vel_x
+            self.velocity[1] = vel_y
+
+            self.pos[0] += vel_x
+            self.pos[1] += vel_y
+        else:
+            self.dead = True
+
+    def distance_to_goal(self):
+
+        return math.sqrt(((self.goal_pos[0] * cellSize + cellSize / 2) - self.pos[0]) ** 2 + (
+                (self.goal_pos[1] * cellSize + cellSize / 2) - self.pos[1]) ** 2)
+
+    def hit_wall(self, game_map):
+        for i in range(0, gridHeight):
+            for j in range(0, gridWidth):
+                if game_map[i][j]["type"] == "X":
+                    if j * cellSize - 2 < self.pos[0] < j * cellSize + cellSize + 2 and i * cellSize - 2 < self.pos[
+                                                                                    1] < i * cellSize + cellSize + 2:
+                        # if self.pos[0] > j*cellSize:
+                        #     self.pos[0] = j*cellSize
+                        # elif self.pos[0] < j*cellSize:
+                        #     self.pos[0] = j*cellSize+cellSize
+                        # elif self.pos[1] > i*cellSize:
+                        #     self.pos[1] = i*cellSize
+                        # elif self.pos[1] < i*cellSize:
+                        #     self.pos[1] = i*cellSize+cellSize
+                        return True
+        else:
+            return False
+
+    def update(self):
+        if not self.dead and not self.reachedGoal:
+            self.move()
+
+            if (self.pos[0] < 2) or (self.pos[0] > width - 2) or (self.pos[1] < 2) or (self.pos[1] > height - 2):
+                self.dead = True
+            elif self.distance_to_goal() < cellSize / 2:
+                self.reachedGoal = True
+            elif self.hit_wall(game_map):
+                self.dead = True
+
+    def calculate_fitness(self):
+        if self.reachedGoal:
+            self.fitness = 1.0/16.0 + 10000.0/(self.brain.step**2)
+        else:
+            dist_to_goal = self.distance_to_goal()
+            self.fitness = 1.0/dist_to_goal
+
+    def show(self):
+        if self.isBest:
+            pygame.draw.circle(screen, GREEN, (int(self.pos[0]), int(self.pos[1])), 2, 0)
+        else:
+            pygame.draw.circle(screen, BLUE, (int(self.pos[0]), int(self.pos[1])), 2, 0)
+
+    def generate_offspring(self):
+        offspring = Dot(start_pos, goal_pos)
+        offspring.brain = self.brain.clone()
+
+        return offspring
+
+
+class Population:
+
+    def __init__(self, pop_size, start_pos, goal_pos):
+        self.dots = []
+        self.fitness_sum = 0
+        self.gen = 1
+        self.bestDot = 0
+        self.min_steps = 1000000
+        for i in range(0, pop_size):
+            self.dots.append(Dot(start_pos, goal_pos))
+
+    def show_all_dots(self):
+        draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
+        for i in range(len(self.dots)-1, -1, -1):
+            self.dots[i].show()
+
+        pygame.display.flip()
+
+    def update_all_dots(self):
+        for i in range(0, len(self.dots)):
+            if self.dots[i].brain.step > self.min_steps:
+                self.dots[i].dead = True
+            else:
+                self.dots[i].update()
+
+    def calculate_all_fitness(self):
+        for i in range(0, len(self.dots)):
+            self.dots[i].calculate_fitness()
+
+    def all_dead(self):
+        for i in range(0, len(self.dots)):
+            if not self.dots[i].dead and not self.dots[i].reachedGoal:
+                return False
+
+        return True
+
+    def natural_selection(self):
+        newDots = []
+        for i in range(0, len(self.dots)):
+            newDots.append(Dot(start_pos, goal_pos))
+        self.setBestDot()
+        self.calculateFitnessSum()
+
+        newDots[0] = self.dots[self.bestDot].generate_offspring()
+        newDots[0].isBest = True
+
+        for i in range(1, len(newDots)):
+            parent = self.select_parent()
+
+            newDots[i] = parent.generate_offspring()
+
+        self.dots = list(newDots)
+        self.gen += 1
+        print("gen", self.gen, len(self.dots), "members")
+
+
+
+    def calculateFitnessSum(self):
+        self.fitness_sum = 0
+        for i in range(0, len(self.dots)):
+            self.fitness_sum += self.dots[i].fitness
+
+    def setBestDot(self):
+        max = 0
+        maxIndex = 0
+        for i in range(0, len(self.dots)):
+            if self.dots[i].fitness > max:
+                max = self.dots[i].fitness
+                maxIndex = i
+
+        self.bestDot = maxIndex
+
+        if self.dots[self.bestDot].reachedGoal:
+            self.min_steps = self.dots[self.bestDot].brain.step
+            print("min_step: ", self.min_steps)
+
+    def mutate_all_members(self):
+        for i in range(1, len(self.dots)):
+            self.dots[i].brain.mutate()
+
+    def select_parent(self):
+        rand = uniform(0, self.fitness_sum)
+
+        running_sum = 0
+
+        for i in range(0, len(self.dots)):
+            running_sum += self.dots[i].fitness
+            if running_sum > rand:
+                return deepcopy(self.dots[i])
+
+
+just_init = True
 
 
 search_path = False
@@ -427,6 +627,7 @@ dead_end_pos = (0, 0)
 # print_map(game_map)
 
 draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
+
 
 while True:
     timestamp_frame_start = datetime.now()
@@ -463,6 +664,19 @@ while True:
                     open_list,
                     closed_list,
                     legal_moves)
+            if SEARCH_ALGO == "genetic":
+                if just_init:
+                    test = Population(population_size, start_pos, goal_pos)
+                    just_init = False
+
+                if test.all_dead():
+                    test.calculate_all_fitness()
+                    test.natural_selection()
+                    test.mutate_all_members()
+                else:
+                    test.update_all_dots()
+                    test.show_all_dots()
+
 
             # print("current_pos", current_pos, "goal_pos", goal_pos)
 
@@ -473,7 +687,7 @@ while True:
                 pygame.draw.rect(screen, live_color,
                                  (current_pos[0] * cellSize + 1, current_pos[1] * cellSize + 1, cellSize - 2,
                                   cellSize - 2), 0)
-                if signal_dead_end:
+                if signal_dead_end and dead_end is not start_pos:
                     pygame.draw.aaline(screen, RED, (dead_end_pos[0] * cellSize + 1, dead_end_pos[1] * cellSize + 1),
                                        (dead_end_pos[0] * cellSize + cellSize - 1,
                                         dead_end_pos[1] * cellSize + cellSize - 1), 2)
@@ -526,7 +740,7 @@ while True:
             if event.key == pygame.K_SPACE:
                 draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
                 live_color = DARK_GREY
-                search_path = True
+                search_path = not search_path
             elif event.key == pygame.K_RETURN:
                 export_map_structure(game_map)
             elif event.key == pygame.K_1:
@@ -535,6 +749,8 @@ while True:
                 SEARCH_ALGO = "bestfirst"
             elif event.key == pygame.K_3:
                 SEARCH_ALGO = "a_star"
+            elif event.key == pygame.K_4:
+                SEARCH_ALGO = "genetic"
             elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_UP:
                 if moves_per_second >= 10:
                     moves_per_second += 10
@@ -609,6 +825,8 @@ while True:
         draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
 
     frame_build_time = (datetime.now() - timestamp_frame_start).microseconds
+    # print("frame_build_time", frame_build_time/1000000.0)
     if frame_build_time < frame_time:
         time.sleep((frame_time - frame_build_time) / 1000000.0)
     pygame.display.flip()
+
