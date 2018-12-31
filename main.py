@@ -23,9 +23,9 @@ SEARCH_ALGO = "genetic"  # "hillclimb", "bestfirst", "a_star", "genetic"
 MOVE_MODE = "cross"  # "cross" or "star"
 
 # Genetic parameters
-population_size = 2000
-brain_total_moves = 200
-mutation_rate = 0.15
+population_size = 500
+brain_total_moves = 100
+mutation_rate = 0.10
 
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -55,11 +55,11 @@ def create_map(gridWidth, gridHeight):
     return new_map
 
 
-def estimate_dist(start_pos, goal_pos):
+def estimate_dist(from_pos, goal_pos):
     if HEURISTIC == "manhattan":
-        return abs(goal_pos[0] - start_pos[0]) + abs(goal_pos[1] - start_pos[1])
+        return abs(goal_pos[0] - from_pos[0]) + abs(goal_pos[1] - from_pos[1])
     elif HEURISTIC == "straight":
-        return math.sqrt((goal_pos[0] - start_pos[0]) ** 2 + (goal_pos[1] - start_pos[1]) ** 2)
+        return math.sqrt((goal_pos[0] - from_pos[0]) ** 2 + (goal_pos[1] - from_pos[1]) ** 2)
 
 
 def print_map(map):
@@ -390,12 +390,12 @@ class Brain:
         self.step = 0
         for i in range(0, nr_of_directions):
             if MOVE_MODE == "star":
-                self.directions.append([(randint(0, cellSize) - cellSize / 2)/2, (randint(0, cellSize) - cellSize / 2)/2])
+                self.directions.append([randint(-.1, 1), randint(-1, 1)])
             elif MOVE_MODE == "cross":
                 if random() > 0.5:
-                    self.directions.append([(randint(0, cellSize) - cellSize / 2)/2, 0])
+                    self.directions.append([randint(-1, 1), 0])
                 else:
-                    self.directions.append([0, (randint(0, cellSize) - cellSize / 2)/2])
+                    self.directions.append([0, randint(-1, 1)])
         # print("directions", self.directions)
 
     def clone(self):
@@ -410,20 +410,20 @@ class Brain:
             if random_num <= mutation_rate:
                 # print("mutated at index", i)
                 if MOVE_MODE == "star":
-                    self.directions[i] = [(randint(0, cellSize) - cellSize / 2)/2, (randint(0, cellSize) - cellSize / 2)/2]
+                    self.directions[i] = [randint(-1, 1), randint(-1, 1)]
                 elif MOVE_MODE == "cross":
                     if random() > 0.5:
-                        self.directions[i] = [(randint(0, cellSize) - cellSize / 2)/2, 0]
+                        self.directions[i] = [randint(-1, 1), 0]
                     else:
-                        self.directions[i] = [0, (randint(0, cellSize) - cellSize / 2)/2]
+                        self.directions[i] = [0, randint(-1, 1)]
 
 
 class Dot:
 
     def __init__(self, start_pos, goal_pos):
-        self.acceleration = [0, 0]
-        self.velocity = [0, 0]
-        self.pos = [start_pos[0] * cellSize + cellSize / 2, start_pos[1] * cellSize + cellSize / 2]
+        # self.acceleration = [0, 0]
+        # self.velocity = [0, 0]
+        self.pos = [start_pos[0], start_pos[1]]
         self.goal_pos = goal_pos
         self.reachedGoal = False
         self.isBest = False
@@ -433,8 +433,10 @@ class Dot:
 
     def move(self):
         if self.brain.step < len(self.brain.directions):
-            self.velocity[0] += int(self.brain.directions[self.brain.step][0])
-            self.velocity[1] += int(self.brain.directions[self.brain.step][1])
+            # self.velocity[0] += int(self.brain.directions[self.brain.step][0])
+            # self.velocity[1] += int(self.brain.directions[self.brain.step][1])
+            self.pos[0] += int(self.brain.directions[self.brain.step][0])
+            self.pos[1] += int(self.brain.directions[self.brain.step][1])
             self.brain.step += 1
 
             # print("vel", self.velocity, type(self.velocity))
@@ -442,47 +444,56 @@ class Dot:
             # print("pos", self.pos, type(self.pos))
             # print("pos[0]", self.pos[0], type(self.pos[0]))
 
-            vel_x = int(self.velocity[0])
-            vel_y = int(self.velocity[1])
-
-            if vel_x > cellSize/2:
-                vel_x = cellSize/2
-            elif vel_x< -cellSize/2:
-                vel_x = -cellSize/2
-
-            if vel_y > cellSize/2:
-                vel_y = cellSize/2
-            elif vel_y < -cellSize/2:
-                vel_y = -cellSize/2
-
-            self.velocity[0] = vel_x
-            self.velocity[1] = vel_y
-
-            self.pos[0] += vel_x
-            self.pos[1] += vel_y
+            # vel_x = int(self.velocity[0])
+            # vel_y = int(self.velocity[1])
+            #
+            # if vel_x > cellSize/2:
+            #     vel_x = cellSize/2
+            # elif vel_x< -cellSize/2:
+            #     vel_x = -cellSize/2
+            #
+            # if vel_y > cellSize/2:
+            #     vel_y = cellSize/2
+            # elif vel_y < -cellSize/2:
+            #     vel_y = -cellSize/2
+            #
+            # self.velocity[0] = vel_x
+            # self.velocity[1] = vel_y
+            #
+            # self.pos[0] += vel_x
+            # self.pos[1] += vel_y
         else:
             self.dead = True
 
     def distance_to_goal(self):
 
-        return math.sqrt(((self.goal_pos[0] * cellSize + cellSize / 2) - self.pos[0]) ** 2 + (
-                (self.goal_pos[1] * cellSize + cellSize / 2) - self.pos[1]) ** 2)
+        # return math.sqrt(((self.goal_pos[0] * cellSize + cellSize / 2) - self.pos[0]) ** 2 + (
+        #         (self.goal_pos[1] * cellSize + cellSize / 2) - self.pos[1]) ** 2)
+
+        # return estimate_dist((self.pos[0], self.pos[1]), goal_pos)
+
+        return math.sqrt((goal_pos[0] - self.pos[0]) ** 2 + (goal_pos[1] - self.pos[1]) ** 2)
 
     def hit_wall(self, game_map):
-        for i in range(0, gridHeight):
-            for j in range(0, gridWidth):
-                if game_map[i][j]["type"] == "X":
-                    if j * cellSize - 2 < self.pos[0] < j * cellSize + cellSize + 2 and i * cellSize - 2 < self.pos[
-                                                                                    1] < i * cellSize + cellSize + 2:
-                        # if self.pos[0] > j*cellSize:
-                        #     self.pos[0] = j*cellSize
-                        # elif self.pos[0] < j*cellSize:
-                        #     self.pos[0] = j*cellSize+cellSize
-                        # elif self.pos[1] > i*cellSize:
-                        #     self.pos[1] = i*cellSize
-                        # elif self.pos[1] < i*cellSize:
-                        #     self.pos[1] = i*cellSize+cellSize
-                        return True
+        # for i in range(0, gridHeight):
+        #     for j in range(0, gridWidth):
+        #         if game_map[i][j]["type"] == "X":
+        #             if j * cellSize - 2 < self.pos[0] < j * cellSize + cellSize + 2 and i * cellSize - 2 < self.pos[
+        #                                                                             1] < i * cellSize + cellSize + 2:
+        #                 # if self.pos[0] > j*cellSize:
+        #                 #     self.pos[0] = j*cellSize
+        #                 # elif self.pos[0] < j*cellSize:
+        #                 #     self.pos[0] = j*cellSize+cellSize
+        #                 # elif self.pos[1] > i*cellSize:
+        #                 #     self.pos[1] = i*cellSize
+        #                 # elif self.pos[1] < i*cellSize:
+        #                 #     self.pos[1] = i*cellSize+cellSize
+        #                 return True
+        # else:
+        #     return False
+
+        if game_map[self.pos[1]][self.pos[0]]["type"] == "X":
+            return True
         else:
             return False
 
@@ -490,9 +501,17 @@ class Dot:
         if not self.dead and not self.reachedGoal:
             self.move()
 
-            if (self.pos[0] < 2) or (self.pos[0] > width - 2) or (self.pos[1] < 2) or (self.pos[1] > height - 2):
+            # if (self.pos[0] < 2) or (self.pos[0] > width - 2) or (self.pos[1] < 2) or (self.pos[1] > height - 2):
+            #     self.dead = True
+            # elif self.distance_to_goal() < cellSize / 2:
+            #     self.reachedGoal = True
+            # elif self.hit_wall(game_map):
+            #     self.dead = True
+
+            # print("x", self.pos[0], "y", self.pos[1])
+            if (self.pos[0] < 0) or (self.pos[0] > gridWidth-1) or (self.pos[1] < 0) or (self.pos[1] > gridHeight-1):
                 self.dead = True
-            elif self.distance_to_goal() < cellSize / 2:
+            elif (self.pos[0], self.pos[1]) == goal_pos:
                 self.reachedGoal = True
             elif self.hit_wall(game_map):
                 self.dead = True
@@ -506,9 +525,11 @@ class Dot:
 
     def show(self):
         if self.isBest:
-            pygame.draw.circle(screen, GREEN, (int(self.pos[0]), int(self.pos[1])), 2, 0)
+            # pygame.draw.circle(screen, GREEN, (int(self.pos[0]), int(self.pos[1])), 2, 0)
+            pygame.draw.circle(screen, GREEN, (self.pos[0]*cellSize+(int(cellSize/2)), self.pos[1]*cellSize+(int(cellSize/2))), 2, 0)
         else:
-            pygame.draw.circle(screen, BLUE, (int(self.pos[0]), int(self.pos[1])), 2, 0)
+            # pygame.draw.circle(screen, BLUE, (int(self.pos[0]), int(self.pos[1])), 2, 0)
+            pygame.draw.circle(screen, BLUE, (self.pos[0]*cellSize+(int(cellSize/2)), self.pos[1]*cellSize+(int(cellSize/2))), 2, 0)
 
     def generate_offspring(self):
         offspring = Dot(start_pos, goal_pos)
@@ -632,6 +653,7 @@ stillWaiting = True
 
 draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
 
+brain_total_moves = (gridHeight * gridWidth)/2
 
 while True:
     timestamp_frame_start = datetime.now()
