@@ -11,7 +11,7 @@ from copy import deepcopy
 window_x, window_y = 5, 32
 # width, height = 1600, 900
 # cellSize = 100
-moves_per_second = 10
+moves_per_second = 300
 fast_speed = 1000
 real_speed = moves_per_second
 
@@ -525,6 +525,7 @@ class Population:
         self.gen = 1
         self.bestDot = 0
         self.min_steps = 1000000
+        self.goalFound = False
         for i in range(0, pop_size):
             self.dots.append(Dot(start_pos, goal_pos))
 
@@ -545,6 +546,8 @@ class Population:
     def calculate_all_fitness(self):
         for i in range(0, len(self.dots)):
             self.dots[i].calculate_fitness()
+            if self.dots[i].reachedGoal:
+                self.goalFound = True
 
     def all_dead(self):
         for i in range(0, len(self.dots)):
@@ -623,6 +626,7 @@ open_list = []
 closed_list = []
 new_wall_blocks_list = []
 dead_end_pos = (0, 0)
+stillWaiting = True
 
 # print_map(game_map)
 
@@ -667,7 +671,19 @@ while True:
             if SEARCH_ALGO == "genetic":
                 if just_init:
                     test = Population(population_size, start_pos, goal_pos)
+                    time_evolution_started = datetime.now()
                     just_init = False
+
+                if test.goalFound and stillWaiting:
+                    time_found = datetime.now()
+                    search_duration = time_found - time_evolution_started
+                    search_duration_secs = search_duration.total_seconds()
+                    hours = search_duration_secs // (60*60)
+                    minutes = (search_duration_secs - hours*60*60) // 60
+                    seconds = search_duration_secs - hours*60*60 - minutes*60
+                    print("first dot arrived after %d generations in %d:%d:%d" % (test.gen, hours, minutes, seconds))
+                    stillWaiting = False
+
 
                 if test.all_dead():
                     test.calculate_all_fitness()
