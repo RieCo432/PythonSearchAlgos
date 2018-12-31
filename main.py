@@ -23,7 +23,7 @@ SEARCH_ALGO = "genetic"  # "hillclimb", "bestfirst", "a_star", "genetic"
 MOVE_MODE = "cross"  # "cross" or "star"
 
 # Genetic parameters
-population_size = 500
+population_size = 1000
 brain_total_moves = 100
 mutation_rate = 0.10
 
@@ -653,7 +653,7 @@ stillWaiting = True
 
 draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
 
-brain_total_moves = (gridHeight * gridWidth)/2
+brain_total_moves = int((gridHeight * gridWidth)/2)
 
 while True:
     timestamp_frame_start = datetime.now()
