@@ -390,12 +390,11 @@ class Brain:
         self.step = 0
         for i in range(0, nr_of_directions):
             if MOVE_MODE == "star":
-                self.directions.append([randint(-.1, 1), randint(-1, 1)])
+                poss_moves = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]
+                self.directions.append(poss_moves[randint(0, 7)])
             elif MOVE_MODE == "cross":
-                if random() > 0.5:
-                    self.directions.append([randint(-1, 1), 0])
-                else:
-                    self.directions.append([0, randint(-1, 1)])
+                poss_moves = [[0, -1], [0, 1], [-1, 0], [1, 0]]
+                self.directions.append(poss_moves[randint(0, 3)])
         # print("directions", self.directions)
 
     def clone(self):
@@ -410,12 +409,11 @@ class Brain:
             if random_num <= mutation_rate:
                 # print("mutated at index", i)
                 if MOVE_MODE == "star":
-                    self.directions[i] = [randint(-1, 1), randint(-1, 1)]
+                    poss_moves = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]
+                    self.directions[i] = poss_moves[randint(0, 7)]
                 elif MOVE_MODE == "cross":
-                    if random() > 0.5:
-                        self.directions[i] = [randint(-1, 1), 0]
-                    else:
-                        self.directions[i] = [0, randint(-1, 1)]
+                    poss_moves = [[0, -1], [0, 1], [-1, 0], [1, 0]]
+                    self.directions[i] = poss_moves[randint(0, 3)]
 
 
 class Dot:
@@ -518,7 +516,7 @@ class Dot:
 
     def calculate_fitness(self):
         if self.reachedGoal:
-            self.fitness = 1.0/16.0 + (gridHeight*gridWidth)/(self.brain.step**2)
+            self.fitness = 1 + (gridHeight*gridWidth)/(self.brain.step**2)
         else:
             dist_to_goal = self.distance_to_goal()
             self.fitness = 1.0/dist_to_goal

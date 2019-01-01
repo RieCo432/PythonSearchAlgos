@@ -1,1 +1,1 @@
-{"wall_info": [3600], "gridWidth": 80, "gridHeight": 45, "cellSize": 20, "windowHeight": 900, "windowWidth": 1600, "startPos": [9, 21], "goalPos": [71, 21]}
+{"wall_info": [1482, 1, 79, 1, 79, 1, 79, 1, 79, 1, 79, 1, 79, 1, 1637], "gridWidth": 80, "gridHeight": 45, "cellSize": 10, "windowHeight": 450, "windowWidth": 800, "startPos": [9, 21], "goalPos": [71, 21]}
