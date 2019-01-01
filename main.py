@@ -646,6 +646,7 @@ closed_list = []
 new_wall_blocks_list = []
 dead_end_pos = (0, 0)
 stillWaiting = True
+showProgress = True
 
 # print_map(game_map)
 
@@ -692,6 +693,7 @@ while True:
                 if just_init:
                     test = Population(population_size, start_pos, goal_pos)
                     time_evolution_started = datetime.now()
+                    end_of_generation_time = time_evolution_started
                     just_init = False
 
                 if test.goalFound and stillWaiting:
@@ -701,17 +703,20 @@ while True:
                     hours = search_duration_secs // (60*60)
                     minutes = (search_duration_secs - hours*60*60) // 60
                     seconds = search_duration_secs - hours*60*60 - minutes*60
-                    print("first dot arrived after %d generations in %d:%d:%d" % (test.gen, hours, minutes, seconds))
+                    print("first dot arrived after %d generations in %d:%d:%d" % (test.gen-1, hours, minutes, seconds))
                     stillWaiting = False
 
-
                 if test.all_dead():
+                    test.show_all_dots()
+                    print("gen_total_time:", (datetime.now()-end_of_generation_time).total_seconds())
+                    end_of_generation_time = datetime.now()
                     test.calculate_all_fitness()
                     test.natural_selection()
                     test.mutate_all_members()
                 else:
                     test.update_all_dots()
-                    test.show_all_dots()
+                    if showProgress:
+                        test.show_all_dots()
 
 
             # print("current_pos", current_pos, "goal_pos", goal_pos)
@@ -787,6 +792,8 @@ while True:
                 SEARCH_ALGO = "a_star"
             elif event.key == pygame.K_4:
                 SEARCH_ALGO = "genetic"
+            elif event.key == pygame.K_h:
+                showProgress = not showProgress
             elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS or event.key == pygame.K_UP:
                 if moves_per_second >= 10:
                     moves_per_second += 10
