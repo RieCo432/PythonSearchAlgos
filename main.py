@@ -25,7 +25,7 @@ MOVE_MODE = "cross"  # "cross" or "star"
 # Genetic parameters
 population_size = 1000
 brain_total_moves = 100
-mutation_rate = 0.10
+mutation_rate = 0.15
 
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -518,7 +518,7 @@ class Dot:
 
     def calculate_fitness(self):
         if self.reachedGoal:
-            self.fitness = 1.0/16.0 + 10000.0/(self.brain.step**2)
+            self.fitness = 1.0/16.0 + (gridHeight*gridWidth)/(self.brain.step**2)
         else:
             dist_to_goal = self.distance_to_goal()
             self.fitness = 1.0/dist_to_goal
