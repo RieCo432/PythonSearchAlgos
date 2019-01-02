@@ -1,4 +1,6 @@
 import math
+import threading
+
 import pygame
 import os
 from datetime import datetime
@@ -26,6 +28,8 @@ MOVE_MODE = "cross"  # "cross" or "star"
 population_size = 1000
 brain_total_moves = 100
 mutation_rate = 0.15
+
+threads_to_use = 6
 
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -562,8 +566,8 @@ class Population:
             else:
                 self.dots[i].update()
 
-    def calculate_all_fitness(self):
-        for i in range(0, len(self.dots)):
+    def calculate_all_fitness(self, index_start, index_end):
+        for i in range(index_start, index_end):
             self.dots[i].calculate_fitness()
             if self.dots[i].reachedGoal:
                 self.goalFound = True
@@ -585,14 +589,27 @@ class Population:
         newDots[0] = self.dots[self.bestDot].generate_offspring()
         newDots[0].isBest = True
 
-        for i in range(1, len(newDots)):
-            parent = self.select_parent()
+        iterations_per_thread = len(test.dots) / threads_to_use
+        parent_choose_threads = []
+        for i in range(0, threads_to_use):
+            index_start = int(round(i * iterations_per_thread))
+            index_end = int(round((i + 1) * iterations_per_thread))
+            t = threading.Thread(target=test.select_parent_work_split, args=(newDots, index_start, index_end))
+            t.start()
+            parent_choose_threads.append(t)
 
-            newDots[i] = parent.generate_offspring()
+        for t in parent_choose_threads:
+            t.join()
 
         self.dots = list(newDots)
         self.gen += 1
         print("gen", self.gen, len(self.dots), "members")
+
+    def select_parent_work_split(self,newDots, index_start, index_end):
+        for i in range(index_start, index_end):
+            if index_start is not 0:
+                parent = self.select_parent()
+                newDots[i] = parent.generate_offspring()
 
 
 
@@ -615,9 +632,10 @@ class Population:
             self.min_steps = self.dots[self.bestDot].brain.step
             print("min_step: ", self.min_steps)
 
-    def mutate_all_members(self):
-        for i in range(1, len(self.dots)):
-            self.dots[i].brain.mutate()
+    def mutate_all_members(self, index_start, index_end):
+        if index_start is not 0:
+            for i in range(index_start, index_end):
+                self.dots[i].brain.mutate()
 
     def select_parent(self):
         rand = uniform(0, self.fitness_sum)
@@ -710,9 +728,27 @@ while True:
                     test.show_all_dots()
                     print("gen_total_time:", (datetime.now()-end_of_generation_time).total_seconds())
                     end_of_generation_time = datetime.now()
-                    test.calculate_all_fitness()
+
+                    iterations_per_thread = len(test.dots)/threads_to_use
+                    fitness_calculator_threads = []
+                    for i in range(0, threads_to_use):
+                        t = threading.Thread(target=test.calculate_all_fitness, args=(int(round(i*iterations_per_thread)), int(round((i+1)*iterations_per_thread))))
+                        t.start()
+                        fitness_calculator_threads.append(t)
+
+                    for t in fitness_calculator_threads:
+                        t.join()
+
                     test.natural_selection()
-                    test.mutate_all_members()
+                    mutator_threads = []
+                    for i in range(0, threads_to_use):
+                        t = threading.Thread(target=test.mutate_all_members, args=(int(round(i*iterations_per_thread)), int(round((i+1)*iterations_per_thread))))
+                        t.start()
+                        mutator_threads.append(t)
+
+                    for t in mutator_threads:
+                        t.join()
+
                 else:
                     test.update_all_dots()
                     if showProgress:
