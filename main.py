@@ -13,7 +13,7 @@ from copy import deepcopy
 window_x, window_y = 5, 32
 # width, height = 1600, 900
 # cellSize = 100
-moves_per_second = 300
+moves_per_second = 50
 fast_speed = 1000
 real_speed = moves_per_second
 
@@ -25,11 +25,11 @@ SEARCH_ALGO = "genetic"  # "hillclimb", "bestfirst", "a_star", "genetic"
 MOVE_MODE = "cross"  # "cross" or "star"
 
 # Genetic parameters
-population_size = 1000
+population_size = 20000
 brain_total_moves = 100
-mutation_rate = 0.15
+mutation_rate = 0.10
 
-threads_to_use = 6
+threads_to_use = 1 # Generally, 1 Thread is faster. May be different for huge populations
 
 WHITE = (255, 255, 255)
 RED = (255, 0, 0)
@@ -44,7 +44,7 @@ live_color = DARK_GREY
 
 cellWallColor = GREY
 
-frame_time = 1000000.0 / moves_per_second
+frame_time = 1.0 / moves_per_second
 
 
 def create_map(gridWidth, gridHeight):
@@ -519,6 +519,7 @@ class Dot:
                 self.dead = True
 
     def calculate_fitness(self):
+        #print("dot", self.brain.directions)
         if self.reachedGoal:
             self.fitness = 1 + (gridHeight*gridWidth)/(self.brain.step**2)
         else:
@@ -549,7 +550,22 @@ class Population:
         self.bestDot = 0
         self.min_steps = 1000000
         self.goalFound = False
-        for i in range(0, pop_size):
+
+        iterations_per_thread = pop_size / threads_to_use
+
+        dot_creation_threads = []
+        for i in range(0, threads_to_use):
+            index_start = int(round(i * iterations_per_thread))
+            index_end = int(round((i + 1) * iterations_per_thread))
+            t = threading.Thread(target=self.dots_creation_worker, args=(start_pos, goal_pos, index_start, index_end))
+            t.start()
+            dot_creation_threads.append(t)
+
+        for t in dot_creation_threads:
+            t.join()
+
+    def dots_creation_worker(self, start_pos, goal_pos, index_start, index_end):
+        for i in range(index_start, index_end):
             self.dots.append(Dot(start_pos, goal_pos))
 
     def show_all_dots(self):
@@ -559,8 +575,8 @@ class Population:
 
         pygame.display.flip()
 
-    def update_all_dots(self):
-        for i in range(0, len(self.dots)):
+    def update_all_dots(self, index_start, index_end):
+        for i in range(index_start, index_end):
             if self.dots[i].brain.step > self.min_steps:
                 self.dots[i].dead = True
             else:
@@ -568,6 +584,8 @@ class Population:
 
     def calculate_all_fitness(self, index_start, index_end):
         for i in range(index_start, index_end):
+            #time.sleep(randint(0, 16)/2.0)
+            #print("fitness", i)
             self.dots[i].calculate_fitness()
             if self.dots[i].reachedGoal:
                 self.goalFound = True
@@ -580,18 +598,33 @@ class Population:
         return True
 
     def natural_selection(self):
-        newDots = []
-        for i in range(0, len(self.dots)):
-            newDots.append(Dot(start_pos, goal_pos))
+
+        # new_dots_start = datetime.now()
+
+        newDots = list(self.dots)
+        for i in range(0, len(newDots)):
+            newDots[i].fitness = 0
+            newDots[i].reachedGoal = False
+            newDots[i].isBest = False
+            newDots[i].dead = False
+
+        # newDots = []
+        # for i in range(0, len(self.dots)):
+        #     newDots.append(Dot(start_pos, goal_pos))
+
+        # print("new_dots", (datetime.now()-new_dots_start).total_seconds())
+
         self.setBestDot()
         self.calculateFitnessSum()
 
         newDots[0] = self.dots[self.bestDot].generate_offspring()
         newDots[0].isBest = True
 
-        iterations_per_thread = len(test.dots) / threads_to_use
+        # parent_search_start = datetime.now()
+
+        iterations_per_thread = len(test.dots) / 1
         parent_choose_threads = []
-        for i in range(0, threads_to_use):
+        for i in range(0, 1):
             index_start = int(round(i * iterations_per_thread))
             index_end = int(round((i + 1) * iterations_per_thread))
             t = threading.Thread(target=test.select_parent_work_split, args=(newDots, index_start, index_end))
@@ -600,6 +633,8 @@ class Population:
 
         for t in parent_choose_threads:
             t.join()
+
+        # print("parent search", (datetime.now()-parent_search_start).total_seconds())
 
         self.dots = list(newDots)
         self.gen += 1
@@ -671,6 +706,7 @@ showProgress = True
 draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
 
 brain_total_moves = int((gridHeight * gridWidth)/2)
+#brain_total_moves = 20
 
 while True:
     timestamp_frame_start = datetime.now()
@@ -712,6 +748,7 @@ while True:
                     test = Population(population_size, start_pos, goal_pos)
                     time_evolution_started = datetime.now()
                     end_of_generation_time = time_evolution_started
+                    moving_start = datetime.now()
                     just_init = False
 
                 if test.goalFound and stillWaiting:
@@ -726,8 +763,17 @@ while True:
 
                 if test.all_dead():
                     test.show_all_dots()
-                    print("gen_total_time:", (datetime.now()-end_of_generation_time).total_seconds())
+
+                    print("moving", (datetime.now()-moving_start).total_seconds())
+
+                    # print("eval started")
+
+                    gen_eval_start = datetime.now()
+
+                    # print("gen_total_time:", (datetime.now()-end_of_generation_time).total_seconds())
                     end_of_generation_time = datetime.now()
+
+                    # fitness_calc_start = datetime.now()
 
                     iterations_per_thread = len(test.dots)/threads_to_use
                     fitness_calculator_threads = []
@@ -739,7 +785,17 @@ while True:
                     for t in fitness_calculator_threads:
                         t.join()
 
+                    # print("fitness calc", (datetime.now()-fitness_calc_start).total_seconds())
+
+                    # natural_select_start = datetime.now()
+
                     test.natural_selection()
+
+                    # print("nat_select", (datetime.now()-natural_select_start).total_seconds())
+                    # print("fit + nat", (datetime.now()-fitness_calc_start).total_seconds())
+
+                    # mutation_start = datetime.now()
+
                     mutator_threads = []
                     for i in range(0, threads_to_use):
                         t = threading.Thread(target=test.mutate_all_members, args=(int(round(i*iterations_per_thread)), int(round((i+1)*iterations_per_thread))))
@@ -749,8 +805,30 @@ while True:
                     for t in mutator_threads:
                         t.join()
 
+                    # print("mutation", (datetime.now()-mutation_start).total_seconds())
+
+                    print("gen_eval", (datetime.now()-gen_eval_start).total_seconds())
+
+                    # print("eval done")
+
+                    # time.sleep(20)
+
+                    moving_start = datetime.now()
+
                 else:
-                    test.update_all_dots()
+                    iterations_per_thread = len(test.dots) / threads_to_use
+
+                    mover_threads = []
+                    for i in range(0, threads_to_use):
+                        index_start = int(round(i*iterations_per_thread))
+                        index_end = int(round((i+1)*iterations_per_thread))
+                        t = threading.Thread(target=test.update_all_dots, args=(index_start, index_end))
+                        t.start()
+                        mover_threads.append(t)
+
+                    for t in mover_threads:
+                        t.join()
+
                     if showProgress:
                         test.show_all_dots()
 
@@ -848,7 +926,7 @@ while True:
             elif event.key == pygame.K_f:
                 set_new_goal = True
 
-            frame_time = 1000000.0 / moves_per_second
+            frame_time = 1.0 / moves_per_second
 
             pygame.display.set_caption("Search algo: %s        Moves/Second: %s" % (SEARCH_ALGO, moves_per_second))
 
@@ -889,7 +967,7 @@ while True:
         if moves_per_second != fast_speed:
             real_speed = moves_per_second
             moves_per_second = fast_speed
-            frame_time = 1000000.0 / moves_per_second
+            frame_time = 1.0 / moves_per_second
 
     if trace_new_wall and not pressed1:
         trace_new_wall = False
@@ -900,12 +978,12 @@ while True:
                 game_map[block[1]][block[0]]["type"] = " "
 
         moves_per_second = real_speed
-        frame_time = 1000000.0 / moves_per_second
+        frame_time = 1.0 / moves_per_second
         draw_map(game_map, gridWidth, gridHeight, cellSize, width, height)
 
-    frame_build_time = (datetime.now() - timestamp_frame_start).microseconds
+    frame_build_time = (datetime.now() - timestamp_frame_start).total_seconds()
     # print("frame_build_time", frame_build_time/1000000.0)
-    if frame_build_time < frame_time:
-        time.sleep((frame_time - frame_build_time) / 1000000.0)
+    if frame_build_time < frame_time and showProgress:
+        time.sleep((frame_time - frame_build_time))
     pygame.display.flip()
 
