@@ -582,10 +582,9 @@ class Population:
             else:
                 self.dots[i].update()
 
-    def calculate_all_fitness(self, index_start, index_end):
-        for i in range(index_start, index_end):
-            #time.sleep(randint(0, 16)/2.0)
-            #print("fitness", i)
+
+    def calculate_all_fitness(self):
+        for i in range(0, len(self.dots)):
             self.dots[i].calculate_fitness()
             if self.dots[i].reachedGoal:
                 self.goalFound = True
@@ -620,31 +619,16 @@ class Population:
         newDots[0] = self.dots[self.bestDot].generate_offspring()
         newDots[0].isBest = True
 
-        # parent_search_start = datetime.now()
+        for i in range(1, len(newDots)):
+            parent = self.select_parent()
 
-        iterations_per_thread = len(test.dots) / 1
-        parent_choose_threads = []
-        for i in range(0, 1):
-            index_start = int(round(i * iterations_per_thread))
-            index_end = int(round((i + 1) * iterations_per_thread))
-            t = threading.Thread(target=test.select_parent_work_split, args=(newDots, index_start, index_end))
-            t.start()
-            parent_choose_threads.append(t)
-
-        for t in parent_choose_threads:
-            t.join()
+            newDots[i] = parent.generate_offspring()
 
         # print("parent search", (datetime.now()-parent_search_start).total_seconds())
 
         self.dots = list(newDots)
         self.gen += 1
         print("gen", self.gen, len(self.dots), "members")
-
-    def select_parent_work_split(self,newDots, index_start, index_end):
-        for i in range(index_start, index_end):
-            if index_start is not 0:
-                parent = self.select_parent()
-                newDots[i] = parent.generate_offspring()
 
 
 
@@ -667,10 +651,9 @@ class Population:
             self.min_steps = self.dots[self.bestDot].brain.step
             print("min_step: ", self.min_steps)
 
-    def mutate_all_members(self, index_start, index_end):
-        if index_start is not 0:
-            for i in range(index_start, index_end):
-                self.dots[i].brain.mutate()
+    def mutate_all_members(self):
+        for i in range(1, len(self.dots)):
+            self.dots[i].brain.mutate()
 
     def select_parent(self):
         rand = uniform(0, self.fitness_sum)
@@ -773,48 +756,9 @@ while True:
                     # print("gen_total_time:", (datetime.now()-end_of_generation_time).total_seconds())
                     end_of_generation_time = datetime.now()
 
-                    # fitness_calc_start = datetime.now()
-
-                    iterations_per_thread = len(test.dots)/threads_to_use
-                    fitness_calculator_threads = []
-                    for i in range(0, threads_to_use):
-                        t = threading.Thread(target=test.calculate_all_fitness, args=(int(round(i*iterations_per_thread)), int(round((i+1)*iterations_per_thread))))
-                        t.start()
-                        fitness_calculator_threads.append(t)
-
-                    for t in fitness_calculator_threads:
-                        t.join()
-
-                    # print("fitness calc", (datetime.now()-fitness_calc_start).total_seconds())
-
-                    # natural_select_start = datetime.now()
-
+                    test.calculate_all_fitness()
                     test.natural_selection()
-
-                    # print("nat_select", (datetime.now()-natural_select_start).total_seconds())
-                    # print("fit + nat", (datetime.now()-fitness_calc_start).total_seconds())
-
-                    # mutation_start = datetime.now()
-
-                    mutator_threads = []
-                    for i in range(0, threads_to_use):
-                        t = threading.Thread(target=test.mutate_all_members, args=(int(round(i*iterations_per_thread)), int(round((i+1)*iterations_per_thread))))
-                        t.start()
-                        mutator_threads.append(t)
-
-                    for t in mutator_threads:
-                        t.join()
-
-                    # print("mutation", (datetime.now()-mutation_start).total_seconds())
-
-                    print("gen_eval", (datetime.now()-gen_eval_start).total_seconds())
-
-                    # print("eval done")
-
-                    # time.sleep(20)
-
-                    moving_start = datetime.now()
-
+                    test.mutate_all_members()
                 else:
                     iterations_per_thread = len(test.dots) / threads_to_use
 
