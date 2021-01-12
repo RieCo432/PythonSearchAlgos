@@ -576,22 +576,22 @@ class Population:
         pygame.display.flip()
 
     def update_all_dots(self, index_start, index_end):
-        for i in range(index_start, index_end):
-            if self.dots[i].brain.step > self.min_steps:
-                self.dots[i].dead = True
+        for dot in self.dots[index_start:index_end]:
+            if dot.brain.step > self.min_steps:
+                dot.dead = True
             else:
-                self.dots[i].update()
+                dot.update()
 
 
     def calculate_all_fitness(self):
-        for i in range(0, len(self.dots)):
-            self.dots[i].calculate_fitness()
-            if self.dots[i].reachedGoal:
+        for dot in self.dots:
+            dot.calculate_fitness()
+            if dot.reachedGoal:
                 self.goalFound = True
 
     def all_dead(self):
-        for i in range(0, len(self.dots)):
-            if not self.dots[i].dead and not self.dots[i].reachedGoal:
+        for dot in self.dots:
+            if not dot.dead and not dot.reachedGoal:
                 return False
 
         return True
@@ -600,7 +600,7 @@ class Population:
 
         # new_dots_start = datetime.now()
 
-        newDots = list(self.dots)
+        newDots = deepcopy(self.dots)
         for i in range(0, len(newDots)):
             newDots[i].fitness = 0
             newDots[i].reachedGoal = False
@@ -615,6 +615,8 @@ class Population:
 
         self.setBestDot()
         self.calculateFitnessSum()
+
+        print("fitness sum", self.fitness_sum)
 
         newDots[0] = self.dots[self.bestDot].generate_offspring()
         newDots[0].isBest = True
@@ -636,6 +638,7 @@ class Population:
         self.fitness_sum = 0
         for i in range(0, len(self.dots)):
             self.fitness_sum += self.dots[i].fitness
+
 
     def setBestDot(self):
         max = 0
@@ -747,7 +750,7 @@ while True:
                 if test.all_dead():
                     test.show_all_dots()
 
-                    print("moving", (datetime.now()-moving_start).total_seconds())
+                    # print("moving", (datetime.now()-moving_start).total_seconds())
 
                     # print("eval started")
 
